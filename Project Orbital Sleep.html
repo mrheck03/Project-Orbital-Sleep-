@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Orbital Sleep: Astronaut Sleep & Circadian Tracker</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+:root{--bg:#f3f1ec;--panel:#fff;--ink:#17203a;--mute:#5c6683;--line:#d9d6cc;--deep:#2f4a9c;--rem:#b0527a;--light:#7aa6d8;--awake:#e0a030;--ok:#2c8a5a;--warn:#c27a10;--bad:#b83a3a;--lamp:#e0a030;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c1224;--panel:#141c36;--ink:#e8ecf6;--mute:#9aa5c6;--line:#27315a;--deep:#6f8cf0;--rem:#d9779f;--light:#8fbbe8;--awake:#f2b35c;--ok:#52c58a;--warn:#f2b35c;--bad:#f07a7a;--lamp:#f2b35c}}
+:root[data-theme="dark"]{--bg:#0c1224;--panel:#141c36;--ink:#e8ecf6;--mute:#9aa5c6;--line:#27315a;--deep:#6f8cf0;--rem:#d9779f;--light:#8fbbe8;--awake:#f2b35c;--ok:#52c58a;--warn:#f2b35c;--bad:#f07a7a;--lamp:#f2b35c}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.55 "IBM Plex Sans",system-ui,sans-serif}
+h1,h2,h3{font-family:"Bricolage Grotesque","IBM Plex Sans",system-ui,sans-serif;margin:0;line-height:1.15}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 48px}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;padding:8px 0 20px}
+header h1{font-size:clamp(1.8rem,5vw,2.8rem);font-weight:700}
+header p{margin:6px 0 0;color:var(--mute);max-width:52ch}
+.clock{text-align:right}
+.clock b{font:700 2rem "Bricolage Grotesque",sans-serif;display:block;font-variant-numeric:tabular-nums}
+.clock span{color:var(--mute);font-size:.9rem}
+.crew{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.crew button{border:1.5px solid var(--line);background:var(--panel);border-radius:999px;padding:10px 16px;min-height:48px;display:flex;gap:8px;align-items:center}
+.crew button[aria-pressed="true"]{border-color:var(--lamp);box-shadow:inset 0 0 0 1px var(--lamp)}
+.dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(12,1fr)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+.card h2{font-size:1.25rem;margin-bottom:4px}
+.sub{color:var(--mute);font-size:.92rem;margin:0 0 14px}
+.hero{grid-column:span 7;display:grid;grid-template-columns:minmax(220px,1fr) 1fr;gap:20px;align-items:center}
+.side{grid-column:span 5}
+.wide{grid-column:span 12}
+.half{grid-column:span 6}
+@media (max-width:860px){.hero,.side,.half{grid-column:span 12}.hero{grid-template-columns:1fr}}
+svg{display:block;max-width:100%;height:auto}
+.dial text{fill:var(--mute);font-size:9px;font-family:"IBM Plex Sans",sans-serif}
+.stat{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.stat:last-child{border:0}
+.stat b{font-variant-numeric:tabular-nums}
+.big{font:700 3.4rem/1 "Bricolage Grotesque",sans-serif}
+.tag{display:inline-block;border-radius:6px;padding:2px 10px;font-weight:500;font-size:.9rem;border:1.5px solid currentColor}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.88rem;color:var(--mute);margin-top:10px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.plan{list-style:none;margin:0;padding:0}
+.plan li{display:grid;grid-template-columns:64px 1fr;gap:12px;padding:10px 12px;border-radius:10px;border:1.5px solid transparent}
+.plan li.now{border-color:var(--lamp);background:color-mix(in srgb,var(--lamp) 12%,transparent)}
+.plan time{font-variant-numeric:tabular-nums;font-weight:500}
+.plan small{display:block;color:var(--mute)}
+.modes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.modes button,.log button{border:1.5px solid var(--line);background:transparent;border-radius:10px;padding:12px 16px;min-height:52px}
+.modes button[aria-pressed="true"]{background:var(--lamp);color:#14110a;border-color:var(--lamp);font-weight:500}
+.log{display:flex;gap:8px;flex-wrap:wrap}
+.tasks{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.task{border:1.5px solid var(--line);border-radius:12px;padding:14px}
+.task b{display:block;margin-bottom:2px}
+.msg{min-height:1.5em;color:var(--mute);margin:10px 0 0}
+.tip{border-left:4px solid var(--lamp);padding:4px 0 4px 14px;margin:10px 0}
+footer{color:var(--mute);font-size:.85rem;margin-top:24px}
+@media (prefers-reduced-motion:no-preference){.hand{transition:transform .6s ease}}
+.ov{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.ovc{text-align:left;border:1.5px solid var(--line);background:transparent;border-radius:12px;padding:12px 14px;width:100%;min-height:48px}
+.ovc[aria-current="true"]{border-color:var(--lamp);box-shadow:inset 0 0 0 1px var(--lamp)}
+.ovc b{display:block;margin-bottom:4px}.ovc small{display:block;color:var(--mute);margin-top:4px}
+.alert{display:grid;grid-template-columns:auto 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.alert:last-child{border:0}.alert small{display:block;color:var(--mute)}
+.env{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.env div{border:1.5px solid var(--line);border-radius:12px;padding:12px}
+.env b{font:700 1.5rem "Bricolage Grotesque",sans-serif;display:block}
+select,textarea{font:inherit;color:inherit;background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:10px;min-height:48px}
+textarea{width:100%;min-height:170px;margin-top:10px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{border:1.5px solid var(--lamp);background:var(--lamp);color:#14110a;border-radius:10px;padding:12px 18px;min-height:52px;font-weight:500}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.chk{display:flex;gap:12px;align-items:center;padding:8px 0;min-height:48px;border-bottom:1px solid var(--line)}
+.chk input{width:24px;height:24px;accent-color:var(--lamp)}
+.priv label{display:flex;gap:8px;align-items:center;border:1.5px solid var(--line);border-radius:10px;padding:10px 14px;min-height:48px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+td,th{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+a{color:var(--deep)}
+.scroll{overflow-x:auto}
+</style>
+</head>
+<body>
+<main>
+<header>
+ <div>
+  <h1>Orbital Sleep</h1>
+  <p>On the station the sun rises 16 times a day. This tracker keeps each crew member's body clock on one steady day, using their own sleep history and the cabin lights.</p>
+ </div>
+ <div class="clock"><b id="clk">--:--:--</b><span>Mission time (GMT)</span></div>
+</header>
+
+<div class="crew" id="crew" role="group" aria-label="Crew member"></div>
+
+<section class="card" style="margin-bottom:16px" aria-labelledby="h-ov">
+ <h2 id="h-ov">Whole crew at a glance</h2>
+ <p class="sub">Fatigue status for everyone. Select a person to open their details.</p>
+ <div class="ov" id="ov"></div>
+</section>
+<div class="grid">
+ <section class="card hero" aria-labelledby="h-dial">
+  <div>
+   <svg class="dial" id="dial" viewBox="0 0 220 220" role="img" aria-label="24-hour body clock"></svg>
+  </div>
+  <div>
+   <h2 id="h-dial">Today's body clock</h2>
+   <p class="sub" id="dialsub"></p>
+   <div class="legend">
+    <span><i style="background:var(--deep)"></i>Sleep window</span>
+    <span><i style="background:var(--lamp)"></i>Bright light</span>
+    <span><i style="background:var(--light)"></i>Neutral</span>
+    <span><i style="background:var(--rem)"></i>Dim amber</span>
+   </div>
+  </div>
+ </section>
+
+ <section class="card side" aria-labelledby="h-last">
+  <h2 id="h-last">Last night</h2>
+  <p class="sub">Score combines time asleep, efficiency and deep sleep.</p>
+  <div style="display:flex;align-items:baseline;gap:12px"><span class="big" id="score">--</span><span id="scoretag"></span></div>
+  <div id="stats"></div>
+ </section>
+
+ <section class="card wide" aria-labelledby="h-week">
+  <h2 id="h-week">Seven nights</h2>
+  <p class="sub">Hours in bed by stage. The dashed line marks the 8-hour target.</p>
+  <svg id="week" viewBox="0 0 700 230" role="img" aria-label="Stacked bar chart of the last seven nights"></svg>
+  <div class="legend">
+   <span><i style="background:var(--deep)"></i>Deep</span><span><i style="background:var(--rem)"></i>REM</span><span><i style="background:var(--light)"></i>Light</span><span><i style="background:var(--awake)"></i>Awake</span>
+  </div>
+ </section>
+
+ <section class="card half" aria-labelledby="h-light">
+  <h2 id="h-light">Cabin light plan</h2>
+  <p class="sub" id="lightsub"></p>
+  <ul class="plan" id="plan"></ul>
+  <div class="modes" role="group" aria-label="Cabin lighting mode" id="modes"></div>
+  <p class="msg" id="lightmsg" aria-live="polite"></p>
+ </section>
+
+ <section class="card half" aria-labelledby="h-ready">
+  <h2 id="h-ready">Ready for duty?</h2>
+  <p class="sub">Fatigue check before high-risk tasks.</p>
+  <div class="tasks" id="tasks"></div>
+  <div id="tips"></div>
+  <h3 style="margin-top:18px;font-size:1.05rem">Log how you slept</h3>
+  <div class="log" id="log"></div>
+  <p class="msg" id="logmsg" aria-live="polite"></p>
+ </section>
+
+ <section class="card wide" aria-labelledby="h-orb">
+  <h2 id="h-orb">16 sunrises a day</h2>
+  <p class="sub">The station orbits Earth every 90 minutes. The window shows light and dark, but your body clock follows the cabin lights.</p>
+  <svg id="orbit" viewBox="0 0 700 78" role="img" aria-label="Orbital day and night across 24 hours with the sleep window"></svg>
+  <p class="msg" id="orbitmsg"></p>
+ </section>
+
+ <section class="card half" aria-labelledby="h-al">
+  <h2 id="h-al">Sleep alerts</h2>
+  <p class="sub">Each alert says why it fired and what to do.</p>
+  <div id="alerts"></div>
+ </section>
+
+ <section class="card half" aria-labelledby="h-env">
+  <h2 id="h-env">Sleep quarters environment</h2>
+  <p class="sub">Live readings near the sleep station. Updates every 5 seconds.</p>
+  <div class="env" id="env"></div>
+ </section>
+
+ <section class="card half" aria-labelledby="h-sh">
+  <h2 id="h-sh">Shift planner</h2>
+  <p class="sub">Moving the sleep window for a handover or ground-contact change? Shift gradually to avoid jet lag.</p>
+  <div class="row">
+   <label for="shift">Move sleep by</label>
+   <select id="shift"><option value="-3">3 h earlier</option><option value="-2">2 h earlier</option><option value="-1">1 h earlier</option><option value="0" selected>No change</option><option value="1">1 h later</option><option value="2">2 h later</option><option value="3">3 h later</option></select>
+   <button class="btn" id="apply" disabled>Apply shift</button>
+  </div>
+  <div id="shiftplan"></div>
+  <p class="msg" id="shiftmsg" aria-live="polite"></p>
+ </section>
+
+ <section class="card half" aria-labelledby="h-ck">
+  <h2 id="h-ck">Pre-sleep checklist</h2>
+  <p class="sub">Five checks that protect tonight’s sleep.</p>
+  <div id="chk"></div>
+ </section>
+
+ <section class="card wide" aria-labelledby="h-rep">
+  <h2 id="h-rep">Share with the flight surgeon</h2>
+  <p class="sub">You decide how much the ground team sees.</p>
+  <div class="row priv" role="radiogroup" aria-label="Sharing level">
+   <label><input type="radio" name="priv" value="none">Private</label>
+   <label><input type="radio" name="priv" value="trends" checked>Trends only</label>
+   <label><input type="radio" name="priv" value="full">Full detail</label>
+  </div>
+  <textarea id="rep" readonly aria-label="Summary to share"></textarea>
+  <div class="row" style="margin-top:10px"><button class="btn" id="copy">Copy summary</button><span class="msg" id="repmsg" aria-live="polite"></span></div>
+ </section>
+ <section class="card wide" aria-labelledby="h-nasa">
+  <h2 id="h-nasa">NASA data used</h2>
+  <p class="sub">The CO₂ alert levels in the sleep quarters panel come from NASA. The crew members and their sleep values are simulated.</p>
+  <p class="tip"><b>CO₂ limit on the space station: 3 mmHg</b>, averaged over one hour. NASA reports decreased sleep, fatigue and nausea above 4.5 mmHg, so this page shows Watch above 3 mmHg and Act above 4.5 mmHg.</p>
+  <p>Source: <a href="https://www.nasa.gov/ochmo-tb-004-carbon-dioxide-2/" target="_blank" rel="noopener">NASA, OCHMO-TB-004 Carbon Dioxide</a></p>
+ </section>
+</div>
+<footer>Prototype with simulated crew data. CO₂ limits from NASA. Not a medical device.</footer>
+</main>
+
+<script>
+const crew=[
+ {n:'Cdr. Asha Rao',c:'#e0a030',s:22.0,seed:7},
+ {n:'Dr. Lin Chen',c:'#6f8cf0',s:22.5,seed:19},
+ {n:'Marcus Okafor',c:'#52c58a',s:23.0,seed:31},
+ {n:'Sofia Ivanova',c:'#d9779f',s:21.5,seed:43}];
+const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const $=id=>document.getElementById(id);
+let cur=0,mode='auto';
+function rng(s){return()=>(s=(s*9301+49297)%233280)/233280}
+function make(c){const r=rng(c.seed);c.nights=[];
+ for(let i=0;i<7;i++){const bed=6+r()*2.2,aw=.2+r()*.7,deep=1+r()*.9,rem=1.2+r()*.8;
+  c.nights.push({deep,rem,light:Math.max(.5,bed-aw-deep-rem),awake:aw})}}
+crew.forEach(make);
+const tot=n=>n.deep+n.rem+n.light;
+const bed=n=>tot(n)+n.awake;
+function score(n){const h=tot(n),eff=h/bed(n);return Math.max(0,Math.min(100,Math.round(Math.min(h/8,1)*55+eff*25+Math.min(n.deep/1.8,1)*20)))}
+function fmt(h){h=((h%24)+24)%24;const m=Math.round(h*60)%1440;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
+function nowH(){const d=new Date();return d.getUTCHours()+d.getUTCMinutes()/60+d.getUTCSeconds()/3600}
+function pol(h,r){const a=(h/24)*2*Math.PI-Math.PI/2;return[110+r*Math.cos(a),110+r*Math.sin(a)]}
+function arc(a,b,r,w,col){let len=((b-a)%24+24)%24;const[x1,y1]=pol(a,r),[x2,y2]=pol(a+len,r);
+ return`<path d="M${x1.toFixed(1)} ${y1.toFixed(1)}A${r} ${r} 0 ${len>12?1:0} 1 ${x2.toFixed(1)} ${y2.toFixed(1)}" fill="none" stroke="${col}" stroke-width="${w}"/>`}
+function plan(c){const s=c.s,w=s+bed(c.nights[6]);
+ return[
+ {t:w,name:'Wake and bright light',d:'6500K blue-rich light, 30 minutes. Locks in the morning clock.',col:'var(--lamp)',lamp:'Bright'},
+ {t:w+1,name:'Work block',d:'Full cabin brightness.',col:'var(--lamp)',lamp:'Bright'},
+ {t:w+8,name:'Neutral light',d:'4000K. Begin easing off screens.',col:'var(--light)',lamp:'Neutral'},
+ {t:s-3,name:'Dim amber',d:'2700K, no blue. Eat last meal and stop heavy exercise.',col:'var(--rem)',lamp:'Dim'},
+ {t:s,name:'Lights out',d:'Sleep station, cabin quiet and cool.',col:'var(--deep)',lamp:'Dim'}]}
+function drawDial(){const c=crew[cur],p=plan(c),h=nowH();let g='';
+ g+=`<circle cx="110" cy="110" r="88" fill="none" stroke="var(--line)" stroke-width="22"/>`;
+ for(let i=0;i<p.length;i++){const a=p[i].t,b=p[(i+1)%p.length].t;g+=arc(a,b,88,22,p[i].col)}
+ const w=p[0].t;g+=arc(c.s,w,66,10,'var(--deep)');
+ for(let i=0;i<24;i+=3){const[x,y]=pol(i,104);g+=`<text x="${x}" y="${y+3}" text-anchor="middle">${String(i).padStart(2,'0')}</text>`}
+ const[hx,hy]=pol(h,100);
+ g+=`<line class="hand" x1="110" y1="110" x2="${hx}" y2="${hy}" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round"/><circle cx="110" cy="110" r="5" fill="var(--ink)"/>`;
+ g+=`<text x="110" y="148" text-anchor="middle" style="font-size:8px">sleep ${fmt(c.s)} to ${fmt(w)}</text>`;
+ $('dial').innerHTML=g;
+ $('dialsub').textContent=`${c.n} sleeps ${fmt(c.s)} to ${fmt(w)} GMT. The outer ring is the light schedule, the inner arc is the sleep window, and the line is the time now.`}
+function drawLast(){const n=crew[cur].nights[6],sc=score(n);
+ $('score').textContent=sc;
+ const cls=sc>=75?'ok':sc>=55?'warn':'bad',lbl=sc>=75?'Rested':sc>=55?'Fair':'Poor';
+ $('score').className='big '+cls;$('scoretag').innerHTML=`<span class="tag ${cls}">${lbl}</span>`;
+ const st=[['Time asleep',tot(n).toFixed(1)+' h'],['Sleep efficiency',Math.round(tot(n)/bed(n)*100)+'%'],['Deep sleep',n.deep.toFixed(1)+' h'],['REM sleep',n.rem.toFixed(1)+' h'],['Awake in bed',Math.round(n.awake*60)+' min']];
+ $('stats').innerHTML=st.map(x=>`<div class="stat"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('')}
+function drawWeek(){const ns=crew[cur].nights;let g='';const base=190,sc=18;
+ g+=`<line x1="40" x2="690" y1="${base-8*sc}" y2="${base-8*sc}" stroke="var(--mute)" stroke-dasharray="5 5"/><text x="4" y="${base-8*sc+4}" style="fill:var(--mute);font-size:11px">8 h</text>`;
+ ns.forEach((n,i)=>{const x=60+i*88;let y=base;
+  [['deep','--deep'],['rem','--rem'],['light','--light'],['awake','--awake']].forEach(k=>{const hh=n[k[0]]*sc;y-=hh;g+=`<rect x="${x}" y="${y}" width="52" height="${hh}" rx="2" fill="var(${k[1]})"/>`});
+  g+=`<text x="${x+26}" y="210" text-anchor="middle" style="fill:var(--ink);font-size:12px">${days[i]}</text><text x="${x+26}" y="${y-6}" text-anchor="middle" style="fill:var(--mute);font-size:11px">${tot(n).toFixed(1)}h</text>`});
+ $('week').innerHTML=g}
+function drawPlan(){const c=crew[cur],p=plan(c),h=nowH();let idx=0;
+ const rel=p.map(x=>((h-x.t)%24+24)%24);idx=rel.indexOf(Math.min(...rel));
+ const eff=mode==='auto'?p[idx].lamp:mode;
+ $('lightsub').textContent=`Cabin light is set to ${eff.toLowerCase()} for ${c.n}'s zone.`;
+ $('plan').innerHTML=p.map((x,i)=>`<li class="${i===idx?'now':''}"><time>${fmt(x.t)}</time><span><b>${x.name}</b><small>${x.d}</small></span></li>`).join('');
+ const m=['auto','Bright','Neutral','Dim'];
+ $('modes').innerHTML=m.map(k=>`<button aria-pressed="${mode===k}" data-m="${k}">${k==='auto'?'Follow plan':k}</button>`).join('');
+ $('modes').querySelectorAll('button').forEach(b=>b.onclick=()=>{mode=b.dataset.m;drawPlan();$('lightmsg').textContent=mode==='auto'?'Lights follow the plan.':`Cabin lights set to ${mode.toLowerCase()} until you switch back.`})}
+function fatigue(){const ns=crew[cur].nights,debt=ns.slice(4).reduce((a,n)=>a+Math.max(0,8-tot(n)),0);
+ return Math.min(100,Math.round(100-score(ns[6])+debt*6))}
+function drawReady(){const f=fatigue(),T=[['Spacewalk (EVA)',35],['Docking',45],['Repairs',60]];
+ $('tasks').innerHTML=T.map(t=>{const ok=f<=t[1],near=f<=t[1]+12,cls=ok?'ok':near?'warn':'bad',txt=ok?'Clear':near?'Caution':'Hold';
+  return`<div class="task"><b>${t[0]}</b><span class="tag ${cls}">${txt}</span></div>`}).join('');
+ const nights=crew[cur].nights,debt=nights.slice(4).reduce((a,n)=>a+Math.max(0,8-tot(n)),0);
+ let tips=`<p class="tip">Fatigue index ${f} of 100. Lower is better.</p>`;
+ if(debt>3)tips+=`<p class="tip">Sleep debt is ${debt.toFixed(1)} h over three nights. Move bedtime 30 minutes earlier and consider swapping any EVA role.</p>`;
+ else tips+=`<p class="tip">Sleep debt is low. Keep the current schedule.</p>`;
+ $('tips').innerHTML=tips}
+function drawLog(){const o=[['Slept well',n=>{n.deep+=.3;n.awake=Math.max(.1,n.awake-.2)}],['Slept poorly',n=>{n.light=Math.max(.5,n.light-.7);n.awake+=.5}],['Woke often',n=>{n.awake+=.8;n.deep=Math.max(.4,n.deep-.3)}]];
+ $('log').innerHTML=o.map((x,i)=>`<button data-i="${i}">${x[0]}</button>`).join('');
+ $('log').querySelectorAll('button').forEach(b=>b.onclick=()=>{o[b.dataset.i][1](crew[cur].nights[6]);renderAll();$('logmsg').textContent='Logged. Scores and readiness are updated.'})}
+function renderCrew(){$('crew').innerHTML=crew.map((c,i)=>`<button aria-pressed="${i===cur}" data-i="${i}"><span class="dot" style="background:${c.c}"></span>${c.n}</button>`).join('');
+ $('crew').querySelectorAll('button').forEach(b=>b.onclick=()=>{cur=+b.dataset.i;mode='auto';$('logmsg').textContent='';$('lightmsg').textContent='';renderAll()})}
+function fat(i){const ns=crew[i].nights,d=ns.slice(4).reduce((a,n)=>a+Math.max(0,8-tot(n)),0);return Math.min(100,Math.round(100-score(ns[6])+d*6))}
+const envs=crew.map(c=>{const r=rng(c.seed+5);return{co2:2.4+r()*3,noise:38+r()*12,temp:20+r()*5,hum:35+r()*20}});
+const lab={ok:'OK',warn:'Watch',bad:'Act'};
+function band(f){return f<=35?'ok':f<=60?'warn':'bad'}
+function envSt(e){return[['Carbon dioxide',e.co2.toFixed(1)+' mmHg',e.co2>4.5?'bad':e.co2>3?'warn':'ok'],['Noise',Math.round(e.noise)+' dB',e.noise>50?'bad':e.noise>45?'warn':'ok'],['Temperature',e.temp.toFixed(1)+' °C',e.temp>25?'warn':'ok'],['Humidity',Math.round(e.hum)+'%',e.hum>55?'warn':'ok']]}
+function alerts(i){const c=crew[i],ns=c.nights,n=ns[6],e=envs[i],A=[],d=ns.slice(4).reduce((a,x)=>a+Math.max(0,8-tot(x)),0),f=fat(i);
+ if(tot(n)<6)A.push({l:'bad',t:`Short sleep: ${tot(n).toFixed(1)} h`,w:'Under 6 hours raises error risk the next day.',a:'Protect tonight’s sleep and avoid new high-risk tasks.'});
+ if(d>3)A.push({l:'warn',t:`Sleep debt: ${d.toFixed(1)} h`,w:'Shortfall against 8 hours over the last three nights.',a:'Start dim amber lighting earlier and go to bed 30 minutes sooner.'});
+ if(n.awake>.7)A.push({l:'warn',t:`Fragmented sleep: ${Math.round(n.awake*60)} min awake`,w:'Long wake periods often follow noise, heat or high CO₂.',a:'Check the environment panel and the pre-sleep checklist.'});
+ if(e.co2>3)A.push({l:e.co2>4.5?'bad':'warn',t:`CO₂ is ${e.co2.toFixed(1)} mmHg at the sleep station`,w:'Air barely circulates in microgravity, so CO₂ pools near your face.',a:'Move the sleep station fan or relocate the sleeping bag.'});
+ if(e.noise>45)A.push({l:e.noise>50?'bad':'warn',t:`Noise is ${Math.round(e.noise)} dB`,w:'Above 45 dB disrupts deep sleep.',a:'Use earplugs and check nearby fans or pumps.'});
+ if(f>60)A.push({l:'bad',t:`Fatigue index ${f}`,w:'Combines last night’s score and recent sleep debt.',a:'Hold EVA and docking roles. Consider swapping duties.'});
+ return A}
+function drawOv(){$('ov').innerHTML=crew.map((c,i)=>{const n=c.nights[6],f=fat(i),b=band(f);return`<button class="ovc" data-i="${i}" aria-current="${i===cur}"><b><span class="dot" style="background:${c.c}"></span> ${c.n}</b><span class="tag ${b}">${lab[b]}</span><small>${tot(n).toFixed(1)} h slept, score ${score(n)}, fatigue ${f}</small></button>`}).join('');
+ $('ov').querySelectorAll('button').forEach(b=>b.onclick=()=>{cur=+b.dataset.i;mode='auto';renderAll()})}
+function drawOrbit(){const c=crew[cur],L=bed(c.nights[6]),u=700/24;let g='';
+ for(let k=0;k<16;k++){const a=k*1.5;g+=`<rect x="${a*u}" y="16" width="${.75*u}" height="26" fill="var(--lamp)"/><rect x="${(a+.75)*u}" y="16" width="${.75*u}" height="26" fill="var(--deep)"/>`}
+ const seg=(a,b)=>`<rect x="${a*u+1}" y="8" width="${(b-a)*u-2}" height="42" rx="4" fill="none" stroke="var(--ink)" stroke-width="2.5"/>`;
+ if(c.s+L>24){g+=seg(c.s,24)+seg(0,c.s+L-24)}else g+=seg(c.s,c.s+L);
+ for(let i=0;i<24;i+=3)g+=`<text x="${i*u+2}" y="68" style="fill:var(--mute);font-size:11px">${String(i).padStart(2,'0')}:00</text>`;
+ g+=`<line x1="${nowH()*u}" x2="${nowH()*u}" y1="2" y2="54" stroke="var(--bad)" stroke-width="2.5"/>`;
+ $('orbit').innerHTML=g;
+ $('orbitmsg').textContent=`${c.n}’s sleep window (outlined) covers about ${Math.round(L/1.5)} orbital sunrises. Amber is orbital daylight, blue is orbital night, and the red line is now.`}
+function drawAlerts(){const A=alerts(cur);$('alerts').innerHTML=A.length?A.map(a=>`<div class="alert"><span class="tag ${a.l}">${lab[a.l]}</span><div><b>${a.t}</b><small>${a.w}</small>${a.a}</div></div>`).join(''):'<p class="tip">All clear. No sleep alerts for this crew member.</p>'}
+function drawEnv(){$('env').innerHTML=envSt(envs[cur]).map(x=>`<div><span>${x[0]}</span><b>${x[1]}</b><span class="tag ${x[2]}">${lab[x[2]]}</span></div>`).join('')}
+function drawShift(){const c=crew[cur],v=+$('shift').value;
+ if(!v){$('shiftplan').innerHTML='<p class="sub">Choose a shift to see the night-by-night plan.</p>';$('apply').disabled=true;return}
+ $('apply').disabled=false;const r=v<0?.5:1,n=Math.ceil(Math.abs(v)/r),s=Math.sign(v);let rows='';
+ for(let k=1;k<=Math.min(n,6);k++)rows+=`<tr><td>Night ${k}</td><td>${fmt(c.s+s*Math.min(Math.abs(v),r*k))}</td></tr>`;
+ $('shiftplan').innerHTML=`<p class="tip">Circadian offset: ${Math.abs(v)} h. About ${n} night${n>1?'s':''} to adapt.</p><table><tr><th>Night</th><th>Lights out (GMT)</th></tr>${rows}</table><p class="sub" style="margin-top:8px">${v<0?'Get bright light right after waking and keep the cabin dim for 3 hours before bed.':'Get bright light in the evening and keep lights dim after the new bedtime.'}</p>`}
+$('shift').onchange=drawShift;
+$('apply').onclick=()=>{const c=crew[cur],v=+$('shift').value;if(!v)return;c.s=((c.s+v)%24+24)%24;$('shift').value='0';renderAll();$('shiftmsg').textContent=`Sleep window now starts at ${fmt(c.s)} GMT. Light plan updated.`};
+const items=['Cabin lights dimmed to amber','Exercise finished at least 3 hours ago','No caffeine in the last 8 hours','Sleep restraint and earplugs ready','CO₂ near the sleep station checked'];
+let chk={};try{chk=JSON.parse(localStorage.getItem('os-chk')||'{}')}catch(e){}
+function drawChk(){const st=chk[cur]||[],done=items.filter((_,k)=>st[k]).length;
+ $('chk').innerHTML=items.map((t,k)=>`<label class="chk"><input type="checkbox" data-k="${k}" ${st[k]?'checked':''}>${t}</label>`).join('')+`<p class="msg">${done} of ${items.length} done${done===items.length?'. Ready for sleep.':'.'}</p>`;
+ $('chk').querySelectorAll('input').forEach(b=>b.onchange=()=>{const a=chk[cur]||[];a[+b.dataset.k]=b.checked;chk[cur]=a;try{localStorage.setItem('os-chk',JSON.stringify(chk))}catch(e){}drawChk()})}
+function report(){const c=crew[cur],ns=c.nights,p=document.querySelector('input[name=priv]:checked').value;
+ if(p==='none')return'Nothing is shared. Only you can see your sleep data.';
+ const avg=ns.reduce((a,n)=>a+tot(n),0)/7,as=ns.reduce((a,n)=>a+score(n),0)/7,f=fat(cur);
+ let t=`Sleep summary for ${c.n} (7 nights)\nAverage sleep: ${avg.toFixed(1)} h\nAverage score: ${Math.round(as)}\nFatigue index: ${f}\nStatus: ${lab[band(f)]}`;
+ if(p==='full'){t+='\n\nNightly detail:\n'+ns.map((n,i)=>`${days[i]}: ${tot(n).toFixed(1)} h, score ${score(n)}, awake ${Math.round(n.awake*60)} min`).join('\n');t+='\n\nAlerts:\n'+(alerts(cur).map(a=>'- '+a.t).join('\n')||'- None')}
+ return t}
+function drawRep(){$('rep').value=report()}
+document.querySelectorAll('input[name=priv]').forEach(r=>r.onchange=drawRep);
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText($('rep').value);$('repmsg').textContent='Summary copied.'}catch(e){$('rep').select();$('repmsg').textContent='Select the text and copy it with Ctrl+C.'}};
+setInterval(()=>{envs.forEach(e=>{e.co2=Math.max(2,e.co2+(Math.random()-.5)*.2);e.noise=Math.max(35,e.noise+(Math.random()-.5)*1.2)});drawOv();drawAlerts();drawEnv()},5000);
+function renderAll(){renderCrew();drawOv();drawDial();drawLast();drawWeek();drawOrbit();drawPlan();drawReady();drawLog();drawAlerts();drawEnv();drawShift();drawChk();drawRep()}
+function tick(){const d=new Date();$('clk').textContent=d.toISOString().substr(11,8)}
+renderAll();tick();setInterval(tick,1000);setInterval(()=>{drawDial();drawPlan()},60000);
+</script>
+</body>
+</html>
